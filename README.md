@@ -3,9 +3,9 @@
 An eight-track tape instrument, modelled after the tape section of a certain portable Swedish
 synth — built as a personal project, from scratch, with no Teenage Engineering code in it.
 
-This repository is currently **research + a working DSP prototype + a UI feel prototype**. There is
-no plugin shell yet; that is deliberate, because four design decisions need answers first
-(`docs/05-roadmap.md`).
+This repository currently holds: the research, a working DSP engine with tests, a UI feel prototype,
+and a plugin shell for macOS (VST3/AU/standalone) that has been written but not yet compiled — see
+`plugin/README.md` for exactly where that stands.
 
 ## What's here
 
@@ -18,8 +18,11 @@ docs/
   05-roadmap.md     plugin architecture, media budget, phases, open questions
 dsp/
   include/tt/       the engine (header-only, C++17, no dependencies)
+    TapeMachine.h   record head, EQ, compander, transport, 8 tracks, deck
+    Recorder.h      takes, punch, undo, lift/drop, split/join, splice
   src/demo.cpp      renders an eight-track sketch through all four stocks
-  src/engine_test.cpp  16 assertions
+  src/*_test.cpp    16 engine assertions + 21 recorder assertions
+plugin/             JUCE 8 shell (VST3/AU/standalone), macOS
 ui/                 the panel prototype; plays the engine renders
 ```
 
@@ -64,9 +67,10 @@ is not — and "personal use" changes none of that. See `docs/02-legal.md`.
 
 ## Status
 
-- engine: working, measured, 16/16 assertions pass
-- UI: prototype, no recording
-- plugin: not started
+- engine: working, measured — 37/37 assertions pass
+- recording/editing layer: working — record, punch, undo, lift/drop, split/join, splice
+- UI: prototype (no recording in the browser)
+- plugin: written, not yet compiled — first build needed on a Mac
 
 Not affiliated with Teenage Engineering. `OP-1` and `OP-1 field` are their trademarks and are used
 here only to describe what inspired the model.

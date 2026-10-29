@@ -312,6 +312,22 @@ private:
     Noise mNoise;
 };
 
+struct Take {
+    int track { 0 };
+    double start { 0 };
+    double end { 0 };
+};
+
+// A span of medium, used for lift/drop, splice and undo snapshots.
+struct Region {
+    double start { 0 };
+    double end { 0 };
+    std::vector<float> left;
+    std::vector<float> right;
+    bool empty() const { return left.empty(); }
+    std::size_t frames() const { return left.size(); }
+};
+
 // ---------------------------------------------------------------------------
 // One track: medium + record head + reproduce chain + its own noise floor,
 // dropouts and azimuth error.
@@ -407,6 +423,119 @@ public:
         outR += sr * gr + n * mHissLevel * 0.92f * mGain;
     }
 
+    // ---- editing ---------------------------------------------------------
+    // `blend` 0 keeps what is on the tape, 1 replaces it, in between is the fade
+    // that makes a punch boundary inaudible without making it un-punch-like.
+    void writeAt(double positionSec, float inL, float inR, float blend = 1.0f)
+    {
+        const double pos = positionSec * mSampleRate;
+        if (pos < 0) return;
+        const auto i = static_cast<long long>(std::floor(pos));
+        const float frac = static_cast<float>(pos - static_cast<double>(i));
+        const float l = mCompander.encode(mRecordHead.process(mEq.record(inL)));
+        const float r = mCompander.encode(mRecordHead.process(mEq.record(inR)));
+        scatter(i, frac, l, r, blend);
+    }
+
+    void eraseRegion(double startSec, double endSec)
+    {
+        const auto [a, b] = sampleRange(startSec, endSec);
+        for (auto i = a; i < b; ++i)
+        {
+            mLeft[i] = 0.0f;
+            mRight[i] = 0.0f;
+        }
+    }
+
+    Region copyRegion(double startSec, double endSec) const
+    {
+        Region region;
+        const auto [a, b] = sampleRange(startSec, endSec);
+        if (b <= a) return region;
+        region.start = startSec;
+        region.end = endSec;
+        region.left.assign(mLeft.begin() + static_cast<long>(a), mLeft.begin() + static_cast<long>(b));
+        region.right.assign(mRight.begin() + static_cast<long>(a), mRight.begin() + static_cast<long>(b));
+        return region;
+    }
+
+    // Butt splices click; this one fades the old take out as the new one fades in.
+    void spliceRegion(double atSec, const Region& region, float gain, double sampleRate)
+    {
+        const auto n = region.frames();
+        if (n == 0) return;
+        const auto base = static_cast<long long>(atSec * mSampleRate);
+        const double fadeSec = 0.008;
+        const auto fade = std::max<std::size_t>(1, static_cast<std::size_t>(fadeSec * sampleRate));
+
+        for (std::size_t k = 0; k < n; ++k)
+        {
+            const auto idx = base + static_cast<long long>(k);
+            if (idx < 0 || idx >= static_cast<long long>(mLeft.size())) continue;
+            float g = gain;
+            if (k < fade) g *= static_cast<float>(k) / static_cast<float>(fade);
+            if (k + fade > n) g *= static_cast<float>(n - k) / static_cast<float>(fade);
+            const float inv = 1.0f - std::min(1.0f, g);
+            mLeft[static_cast<std::size_t>(idx)] = mLeft[static_cast<std::size_t>(idx)] * inv + region.left[k] * g;
+            mRight[static_cast<std::size_t>(idx)] = mRight[static_cast<std::size_t>(idx)] * inv + region.right[k] * g;
+        }
+    }
+
+    void restoreRegion(const Region& region)
+    {
+        const auto base = static_cast<long long>(region.start * mSampleRate);
+        for (std::size_t k = 0; k < region.frames(); ++k)
+        {
+            const auto idx = base + static_cast<long long>(k);
+            if (idx < 0 || idx >= static_cast<long long>(mLeft.size())) continue;
+            mLeft[static_cast<std::size_t>(idx)] = region.left[k];
+            mRight[static_cast<std::size_t>(idx)] = region.right[k];
+        }
+    }
+
+    bool hasContent(double startSec, double endSec, float threshold = 1e-4f) const
+    {
+        const auto [a, b] = sampleRange(startSec, endSec);
+        for (auto i = a; i < b; ++i)
+            if (std::fabs(mLeft[i]) > threshold || std::fabs(mRight[i]) > threshold) return true;
+        return false;
+    }
+
+    // Used to rebuild the take list after an undo, so the list can never claim
+    // audio the medium does not have.
+    std::vector<std::pair<double, double>> nonSilentSpans(float threshold = 1e-4f,
+                                                          double minGapSec = 0.15) const
+    {
+        std::vector<std::pair<double, double>> spans;
+        const std::size_t hop = std::max<std::size_t>(1, static_cast<std::size_t>(mSampleRate * 0.01));
+        const auto gap = static_cast<std::size_t>(minGapSec * mSampleRate);
+        bool inSpan = false;
+        std::size_t spanStart = 0, lastLoud = 0;
+        for (std::size_t i = 0; i < mLeft.size(); i += hop)
+        {
+            bool loud = false;
+            for (std::size_t k = i; k < std::min(i + hop, mLeft.size()) && !loud; k += 4)
+                loud = std::fabs(mLeft[k]) > threshold || std::fabs(mRight[k]) > threshold;
+            if (loud)
+            {
+                if (!inSpan) { inSpan = true; spanStart = i; }
+                lastLoud = i;
+            }
+            else if (inSpan && i - lastLoud > gap)
+            {
+                spans.emplace_back(static_cast<double>(spanStart) / mSampleRate,
+                                   static_cast<double>(lastLoud + hop) / mSampleRate);
+                inSpan = false;
+            }
+        }
+        if (inSpan)
+            spans.emplace_back(static_cast<double>(spanStart) / mSampleRate,
+                               static_cast<double>(std::min(mLeft.size(), lastLoud + hop)) / mSampleRate);
+        return spans;
+    }
+
+    double lengthSec() const { return static_cast<double>(mLeft.size()) / mSampleRate; }
+
     inline float peek(double position) const
     {
         return interpolate4(mLeft.data(), mLeft.size(), position) * 0.5f;
@@ -423,6 +552,28 @@ public:
     }
 
 private:
+    std::pair<std::size_t, std::size_t> sampleRange(double startSec, double endSec) const
+    {
+        const double a = std::max(0.0, startSec) * mSampleRate;
+        const double b = std::max(0.0, endSec) * mSampleRate;
+        const auto ia = std::min(mLeft.size(), static_cast<std::size_t>(a));
+        const auto ib = std::min(mLeft.size(), static_cast<std::size_t>(b));
+        return { ia, std::max(ia, ib) };
+    }
+
+    // Deposit at a fractional position: the write-side twin of interpolation.
+    void scatter(long long index, float frac, float l, float r, float blend)
+    {
+        const auto put = [this, blend](long long i, float g, float vl, float vr) {
+            if (i < 0 || i >= static_cast<long long>(mLeft.size())) return;
+            const auto u = static_cast<std::size_t>(i);
+            mLeft[u] = mLeft[u] * (1.0f - g) + vl * g * blend;
+            mRight[u] = mRight[u] * (1.0f - g) + vr * g * blend;
+        };
+        put(index, 1.0f - frac, l, r);
+        put(index + 1, frac, l, r);
+    }
+
     double mSampleRate { 44100 };
     TapeSpec mSpec {};
     std::vector<float> mLeft, mRight;
@@ -493,12 +644,21 @@ public:
     }
 
     // One stereo sample of the mix bus. Returns the summed, glued, limited pair.
-    inline void processSample(float& outL, float& outR)
+    // `trackOut` (optional) receives the post-tape peak of each strip, which is
+    // what the panel's per-track meters show. Cost is eight fabs per sample.
+    inline void processSample(float& outL, float& outR, float* trackOut = nullptr)
     {
         float l = 0.0f, r = 0.0f;
         const double pos = mTransport.advance();
         const double speed = std::abs(mTransport.speed());
-        for (auto& t : mTracks) t.play(pos, speed, l, r);
+        for (std::size_t i = 0; i < mTracks.size(); ++i)
+        {
+            float tl = 0.0f, tr = 0.0f;
+            mTracks[i].play(pos, speed, tl, tr);
+            l += tl;
+            r += tr;
+            if (trackOut != nullptr) trackOut[i] = std::max(std::fabs(tl), std::fabs(tr));
+        }
 
         l = mEqHigh.process(mEqMid.process(mEqLow.process(l)));
         r = mEqHigh.process(mEqMid.process(mEqLow.process(r)));

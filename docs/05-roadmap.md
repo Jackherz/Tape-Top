@@ -1,5 +1,14 @@
 # Roadmap and the decisions only you can make
 
+## Decisions (locked)
+
+| | |
+|---|---|
+| Host | **macOS**: VST3 + AU + Standalone (Logic/Ableton/Bitwig), Apple silicon + Intel |
+| Shape | **Hybrid**: one deck you can record into, with per-track tape character |
+| Recording | **Full**: record, punch, overdub, undo, lift/drop/split/join |
+| Sound | **Faithful**: Studio / Vintage / Porta / Disk Mini, calibrated against the real unit |
+
 ## Where this stands
 
 | | Status |
@@ -7,8 +16,8 @@
 | Research: firmware, licences, literature | done — `01-research.md`, `02-legal.md` |
 | Tape engine + measurements + tests | done — `dsp/`, 16 assertions passing, 5 wav renders |
 | UI feel prototype | done — `ui/`, live in the browser, four stocks, tricks, transport |
-| Plugin shell (VST3/AU) | not started — needs the four answers below |
-| Recording / media layer | not started |
+| Recording / editing layer (`tt::TapeEditor`) | done — record, punch, undo, lift/drop, split/join, splice crossfade, 21 assertions |
+| Plugin shell (VST3/AU) | written in `plugin/`, **not yet compiled** (no GUI dev headers in the build sandbox) |
 
 ## Proposed architecture
 
@@ -48,12 +57,13 @@ default way this goes wrong.
 
 ## Phases
 
-**Phase 1 — shell (a weekend).** JUCE project, parameters bound to `TapeSpec`, the panel, audio
-passing through the deck with a single stereo input recorded to track 1. Ship a working insert effect.
+**Phase 1 — first build (hours).** `cd plugin && cmake -B build -G Xcode && cmake --build build` on
+your Mac, fix whatever the first compile surfaces, load it in the DAW, arm T1, hit record. The panel,
+the deck, the recorder and the state are already wired.
 
-**Phase 2 — the tape (the real work).** Live record with punch-in/out, erase-as-a-head, lift/drop/
-split/join, undo (OP-1 1.6 added tape undo for a reason), splice crossfade, eight armed tracks,
-solo/mute, and the record/play head gap.
+**Phase 2 — the tape (the real work).** The editing logic exists and is tested; what is missing is
+the *storage* (below) and the workflow details: monitoring while recording (the record/play head gap),
+loop-record comping, solo/mute, and the tape grid selector.
 
 **Phase 3 — authenticity.** Swap the Preisach hysteresis for Jiles–Atherton; add azimuth and
 head-length losses from `chalkwalk-tape` (MIT); add wear/dropout as a *stateful* property of the
@@ -71,17 +81,12 @@ measurements — but a "tape stop + wobble + saturation" punch-in is a realistic
 would make a nice companion to the plugin. Entirely separate codebase; no legal crossover, since the
 SDK is MIT and patches your own firmware.
 
-## The four questions I need answered
+## Still open
 
-1. **Host and OS.** macOS-only AU/VST3 + standalone, or Windows too? Are you in Logic, Ableton,
-   Bitwig, Reaper?
-2. **What is it, exactly?** (a) a multitrack tape *recorder/looper* inside the DAW — record eight
-   tracks, arrange them on a tape, mix and print; (b) a tape-character *insert* for one source, with
-   eight strips as parallel tape voices; or (c) a hybrid — one tape deck you can record into, with
-   per-track processing.
-3. **Recording.** Does it need to capture live audio into the eight tracks (with punch/undo), or is
-   the tape mostly a playback/arrangement surface for clips you drop on it?
-4. **Sound target.** Faithful to the field's four stocks, or a wider "tape laboratory" (more speeds,
-   bias, wear, track width) with the four stocks as starting points?
-
-Answer those and Phase 1 stops being speculative.
+1. **Media persistence.** Where does the tape live between sessions — a `.tapetop` folder next to
+   the project, `Application Support`, or inside the DAW state (bad idea at this size)? Recommendation:
+   a folder, referenced by path in the state, with "missing tape" handling.
+2. **Tape length.** 2 min/track default, or go straight for 6 like the field and accept ~500 MB at
+   int24/48k? This decides whether we need streaming or can stay in RAM.
+3. **Default stock.** Vintage (as in the prototype) or Studio, since Studio is the one that will not
+   surprise you on a mix bus?

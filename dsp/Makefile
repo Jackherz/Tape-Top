@@ -3,7 +3,7 @@ CXX      ?= g++
 CXXFLAGS ?= -O2 -std=c++17 -Wall -Wextra -Wshadow -Iinclude
 OUT      := out
 
-all: $(OUT)/tape_demo $(OUT)/engine_test
+all: $(OUT)/tape_demo $(OUT)/engine_test $(OUT)/recorder_test
 
 $(OUT)/tape_demo: src/demo.cpp include/tt/TapeMachine.h include/tt/Dsp.h | $(OUT)
 	$(CXX) $(CXXFLAGS) src/demo.cpp -o $@
@@ -11,11 +11,15 @@ $(OUT)/tape_demo: src/demo.cpp include/tt/TapeMachine.h include/tt/Dsp.h | $(OUT
 $(OUT)/engine_test: src/engine_test.cpp include/tt/TapeMachine.h include/tt/Dsp.h | $(OUT)
 	$(CXX) $(CXXFLAGS) src/engine_test.cpp -o $@
 
+$(OUT)/recorder_test: src/recorder_test.cpp include/tt/Recorder.h include/tt/TapeMachine.h include/tt/Dsp.h | $(OUT)
+	$(CXX) $(CXXFLAGS) src/recorder_test.cpp -o $@
+
 $(OUT):
 	mkdir -p $(OUT)
 
-test: $(OUT)/engine_test
+test: $(OUT)/engine_test $(OUT)/recorder_test
 	./$(OUT)/engine_test
+	./$(OUT)/recorder_test
 
 render: $(OUT)/tape_demo
 	cd $(CURDIR) && ./$(OUT)/tape_demo && cp $(OUT)/*.wav ../ui/audio/
