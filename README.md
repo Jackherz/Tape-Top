@@ -28,12 +28,23 @@ ui/                 the panel prototype; plays the engine renders
 
 ## Run it
 
+Everything can be driven from the repo root:
+
+```bash
+make test      # 37 assertions: engine + recorder/editor
+make render    # render the four stocks to ui/audio/
+make ui        # serve the panel on :8080
+make plugin    # configure the JUCE build (macOS)
+```
+
+Or by hand, from inside this checkout:
+
 ```bash
 # 1. the engine: build, test, render the demos
 make -C dsp test
 make -C dsp render          # writes dsp/out/*.wav and copies them into ui/audio/
 
-# 2. the panel
+# 2. the panel  (note: ui/ is inside the repo, not at ~)
 cd ui && python3 -m http.server 8080
 # open http://localhost:8080  (click anywhere to start the transport)
 ```
