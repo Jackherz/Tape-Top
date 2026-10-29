@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TAPE–TOP · 8-track tape</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="ui.css">
+</head>
+<body>
+<div class="bench">
+
+  <!-- ===================== window chrome ===================== -->
+  <header class="chrome">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.2"/><circle cx="13" cy="13" r="6.6"/><path d="M13 13 L22 6"/></svg>
+      </div>
+      <div class="brandtext">
+        <h1>TAPE–TOP</h1>
+        <p>eight track tape instrument · model TT-08</p>
+      </div>
+    </div>
+    <div class="chrome-mid">
+      <span class="tag">SIGNAL CONDITIONING</span>
+      <span class="tag dim">32 BIT / 96 K</span>
+    </div>
+    <div class="chrome-right">
+      <svg class="barcode" aria-hidden="true"></svg>
+      <div class="serial">
+        <span>SN 0042-TT</span>
+        <span class="dim">© 2026 / NOT FOR RESALE</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="deck">
+
+    <!-- ===================== left rail ===================== -->
+    <aside class="rail rail-left">
+      <section class="panel">
+        <h2 class="plate">TAPE STOCK</h2>
+        <div class="styles" id="styles"></div>
+      </section>
+
+      <section class="panel transport">
+        <h2 class="plate">TRANSPORT</h2>
+        <div class="reels">
+          <div class="reel" id="reelA">
+            <svg viewBox="0 0 100 100">
+              <circle class="rim" cx="50" cy="50" r="46"/>
+              <circle class="hub" cx="50" cy="50" r="19"/>
+              <g class="spokes">
+                <path d="M50 8 L50 36 M50 64 L50 92 M8 50 L36 50 M64 50 L92 50"/>
+                <path d="M20 20 L40 40 M60 60 L80 80 M80 20 L60 40 M40 60 L20 80" class="thin"/>
+              </g>
+            </svg>
+          </div>
+          <div class="tape-path" aria-hidden="true">
+            <span class="path-line"></span>
+            <span class="head" id="headDot"></span>
+          </div>
+          <div class="reel" id="reelB">
+            <svg viewBox="0 0 100 100">
+              <circle class="rim" cx="50" cy="50" r="46"/>
+              <circle class="hub" cx="50" cy="50" r="19"/>
+              <g class="spokes">
+                <path d="M50 8 L50 36 M50 64 L50 92 M8 50 L36 50 M64 50 L92 50"/>
+                <path d="M20 20 L40 40 M60 60 L80 80 M80 20 L60 40 M40 60 L20 80" class="thin"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <div class="counter">
+          <div class="count-big" id="counter">00:00:00</div>
+          <div class="count-sub"><span id="barpos">001 . 1</span> <span class="dim" id="stateline">STOPPED</span></div>
+        </div>
+
+        <div class="keys">
+          <button class="key" data-act="rew" title="Rewind">
+            <svg viewBox="0 0 24 24"><path d="M20 5 L8 12 L20 19 Z M8 5 L8 19"/></svg>
+          </button>
+          <button class="key" data-act="stop" title="Stop">
+            <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>
+          </button>
+          <button class="key" data-act="play" title="Play">
+            <svg viewBox="0 0 24 24"><path d="M7 5 L19 12 L7 19 Z"/></svg>
+          </button>
+          <button class="key key-rec" data-act="rec" title="Record">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5"/></svg>
+          </button>
+          <button class="key" data-act="ff" title="Fast forward">
+            <svg viewBox="0 0 24 24"><path d="M4 5 L16 12 L4 19 Z M16 5 L16 19"/></svg>
+          </button>
+        </div>
+
+        <div class="speed">
+          <label class="mini">TAPE SPEED</label>
+          <div class="speed-row">
+            <input id="speed" type="range" min="25" max="200" value="100">
+            <output id="speedOut">1.00&nbsp;×</output>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="specPanel">
+        <h2 class="plate">STOCK SPEC</h2>
+        <dl class="spec" id="spec"></dl>
+      </section>
+    </aside>
+
+    <!-- ===================== tape ===================== -->
+    <main class="tape">
+      <div class="tape-head">
+        <span class="plate">TRACKS</span>
+        <div class="grid-btns">
+          <button class="chip on" data-grid="1">BAR</button>
+          <button class="chip" data-grid="0.25">BEAT</button>
+          <button class="chip" data-grid="0.0625">STEP</button>
+        </div>
+        <span class="spacer"></span>
+        <span class="plate dim">TAPE&nbsp;GRID</span>
+      </div>
+
+      <div class="lanes" id="lanes"></div>
+
+      <div class="tape-foot">
+        <div class="tricks" id="tricks"></div>
+        <div class="looprow">
+          <button class="chip" id="setIn">LOOP IN</button>
+          <button class="chip" id="setOut">LOOP OUT</button>
+          <button class="chip" id="loopToggle">LOOP</button>
+          <span class="loopread dim" id="loopread">–</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- ===================== right rail ===================== -->
+    <aside class="rail rail-right">
+      <section class="panel">
+        <h2 class="plate">MASTER</h2>
+        <div class="knob-row" id="masterEq"></div>
+        <div class="fader-block">
+          <label class="mini">OUTPUT</label>
+          <div class="fader"><input id="master" type="range" min="0" max="120" value="100" orient="vertical"></div>
+          <span class="mini dim" id="masterOut">0.0 dB</span>
+        </div>
+        <div class="meter-pair" aria-hidden="true">
+          <div class="meter"><i id="mL"></i></div>
+          <div class="meter"><i id="mR"></i></div>
+        </div>
+      </section>
+
+      <section class="panel scope">
+        <h2 class="plate">SCOPE</h2>
+        <canvas id="scope" width="240" height="96"></canvas>
+      </section>
+
+      <section class="panel">
+        <h2 class="plate">GLUE</h2>
+        <div class="gluebar"><i id="glue"></i></div>
+        <p class="note">Program-dependent magnetic compression across all eight strips.</p>
+      </section>
+    </aside>
+  </div>
+
+  <!-- ===================== mixer ===================== -->
+  <section class="mixer" id="mixer">
+    <div class="mixer-label">
+      <span class="plate">STRIPS</span>
+      <span class="mini dim">GAIN / PAN / DRIVE</span>
+    </div>
+    <div class="strips" id="strips"></div>
+  </section>
+
+  <footer class="foot">
+    <span class="tag dim">TAPE–TOP IS AN INDEPENDENT INSTRUMENT. NOT AFFILIATED WITH TEENAGE ENGINEERING.</span>
+    <span class="tag dim" id="hint">SPACE = PLAY/STOP · 1–8 = TRICKS · DRAG KNOBS</span>
+  </footer>
+</div>
+
+<script src="ui.js"></script>
+</body>
+</html>
