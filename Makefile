@@ -4,7 +4,7 @@
 #   make test     build and run every DSP/recorder assertion (no dependencies)
 #   make render   render the four tape stocks + the transport pass to ui/audio/
 #   make ui       serve the panel prototype on :8080
-#   make plugin   configure the JUCE plugin (macOS; needs Xcode + network once)
+#   make plugin   build the JUCE plugin (macOS; needs Xcode CLT + network once)
 
 .PHONY: all test render ui plugin clean
 
@@ -21,8 +21,7 @@ ui: render
 	cd ui && python3 -m http.server 8080
 
 plugin:
-	cmake -S plugin -B plugin/build -G Xcode
-	@echo "now: cmake --build plugin/build --config Release"
+	./scripts/build-macos.sh
 
 clean:
 	$(MAKE) -C dsp clean

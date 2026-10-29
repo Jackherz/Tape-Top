@@ -5,15 +5,44 @@ The plugin shell that wraps the engine in `../dsp` and the panel design in `../u
 ## Build
 
 ```bash
-cd plugin
-cmake -B build -G Xcode            # or: -G Ninja
-cmake --build build --config Release
+cd Tape-Top            # the repo root
+./scripts/build-macos.sh          # picks a working generator, builds Release
+# or: make plugin
 ```
 
 JUCE 8 is fetched by CMake at configure time (first configure takes a few minutes and needs network).
 `COPY_PLUGIN_AFTER_BUILD` is on, so the AU/VST3 land in `~/Library/Audio/Plug-Ins/…` automatically.
 
-Requirements: Xcode 15+, CMake 3.22+.
+Requirements: macOS 10.15+, CMake 3.22+, and the Xcode **Command Line Tools**
+(`xcode-select --install`). Full Xcode is optional; the script uses Ninja or Unix Makefiles.
+
+### Troubleshooting (the two things that actually go wrong)
+
+**`cd: no such file or directory: plugin`** — you are not inside the repo. The code lives in the
+clone, not in your home folder:
+
+```bash
+git clone -b arena/e95242b2-tape-top https://github.com/Jackherz/Tape-Top.git
+cd Tape-Top
+ls                     # docs  dsp  plugin  scripts  ui
+```
+
+**`CMake Error: Xcode 1.5 not supported / Could not create named generator Xcode`** — CMake could not
+find a full Xcode install. That is normal on a machine with only Command Line Tools, where
+`xcode-select -p` prints `/Library/Developer/CommandLineTools`. Two fixes:
+
+```bash
+# A. don't use the Xcode generator (works fine, this is what the script does)
+cmake -S plugin -B plugin/build -G Ninja            # or -G "Unix Makefiles"
+cmake --build plugin/build --parallel
+
+# B. if you do have full Xcode installed, point the toolchain at it
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+```
+
+Also note `cmake --build build --config Release` only applies to multi-config generators (Xcode,
+Ninja Multi-Config). With Ninja or Makefiles, `-DCMAKE_BUILD_TYPE=Release` is set at configure time
+and the build command takes no `--config`.
 
 ## What this is
 

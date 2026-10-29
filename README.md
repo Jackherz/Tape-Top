@@ -31,6 +31,7 @@ ui/                 the panel prototype; plays the engine renders
 Everything can be driven from the repo root:
 
 ```bash
+./scripts/build-macos.sh   # the plugin (VST3 / AU / standalone), macOS
 make test      # 37 assertions: engine + recorder/editor
 make render    # render the four stocks to ui/audio/
 make ui        # serve the panel on :8080
